@@ -1,37 +1,48 @@
 package vitals;
 
+import java.util.HashMap;
+import java.util.Map;
 
 public abstract class VitalsChecker {
-  static boolean vitalsOk(float temperature, float pulseRate, float spo2) 
-      throws InterruptedException {
-    if (temperature > 102 || temperature < 95) {
-      System.out.println("Temperature is critical!");
-      for (int i = 0; i < 6; i++) {
-        System.out.print("\r* ");
-        Thread.sleep(1000);
-        System.out.print("\r *");
-        Thread.sleep(1000);
-      }
-      return false;
-    } else if (pulseRate < 60 || pulseRate > 100) {
-      System.out.println("Pulse Rate is out of range!");
-      for (int i = 0; i < 6; i++) {
-        System.out.print("\r* ");
-        Thread.sleep(1000);
-        System.out.print("\r *");
-        Thread.sleep(1000);
-      }
-      return false;
-    } else if (spo2 < 90) {
-      System.out.println("Oxygen Saturation out of range!");
-      for (int i = 0; i < 6; i++) {
-        System.out.print("\r* ");
-        Thread.sleep(1000);
-        System.out.print("\r *");
-        Thread.sleep(1000);
-      }
-      return false;
-    }
-    return true;
+
+  enum VitalStatus {
+    CRITICAL, WARNING, NORMAL
   }
-}
+
+  // Configuration for each vital
+  static class VitalRange {
+    final float lower;
+    final float upper;
+    final float tolerancePercent;
+
+    VitalRange(float lower, float upper, float tolerancePercent) {
+      this.lower = lower;
+      this.upper = upper;
+      this.tolerancePercent = tolerancePercent;
+    }
+  }
+
+  static Map<String, VitalRange> vitalRanges = new HashMap<>();
+  static {
+    vitalRanges.put("temperature", new VitalRange(95, 102, 1.5f));
+    vitalRanges.put("pulse", new VitalRange(60, 100, 1.5f));
+    vitalRanges.put("spo2", new VitalRange(90, 100, 1.5f));
+  }
+
+  // --- Transformation 1: classify vital ---
+  static VitalStatus classify(String vitalName, float value) {
+    VitalRange range = vitalRanges.get(vitalName);
+    float tolerance = (range.upper * range.tolerancePercent) / 100;
+
+    if (value < range.lower || value > range.upper) {
+      return VitalStatus.CRITICAL;
+    }
+    if ((value >= range.lower && value <= range.lower + tolerance) ||
+        (value <= range.upper && value >= range.upper - tolerance)) {
+      return VitalStatus.WARNING;
+    }
+    return VitalStatus.NORMAL;
+  }
+
+  // --- Transformation 2: message mapping ---
+  static String message(String vitalName, V
